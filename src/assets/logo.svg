@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
+  <defs>
+    <linearGradient id="optumGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff7200"/>
+      <stop offset="100%" stop-color="#d93f00"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="100" rx="16" fill="#fff" />
+  <circle cx="40" cy="50" r="28" fill="url(#optumGradient)" />
+  <path d="M28 34 C33 27, 47 27, 52 34 L52 66 C47 73, 33 73, 28 66 Z" fill="#fff" fill-opacity="0.9"/>
+  <text x="88" y="57" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#2d2d2d">OPTUM</text>
+</svg>

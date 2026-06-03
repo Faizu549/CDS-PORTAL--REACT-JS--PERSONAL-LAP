@@ -1,0 +1,16 @@
+{
+  "name": "security-team-portal",
+  "version": "1.0.0",
+  "description": "A portal for the security team to manage and monitor security-related tasks.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build step not defined'"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "live-server": "^1.2.1"
+  }
+}
