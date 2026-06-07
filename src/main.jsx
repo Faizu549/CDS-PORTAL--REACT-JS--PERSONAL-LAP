@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
+// const [lastAction, setLastAction] = useState(null);
+
 const ENGINEER_NAME = 'Fayaz Syed';
 
 const USER_NAV_ITEMS = [
@@ -61,6 +63,8 @@ const FIREWALL_OBJECTS = [
   { name: 'OLD_RANGE', type: 'network', value: '10.1.1.0/24' },
   { name: 'WEB_SERVERS_COPY', type: 'network', value: '172.16.0.0/16' }
 ];
+
+
 
 function isIPAddress(value) {
   return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value);
@@ -504,20 +508,23 @@ function App() {
           <section className="main-panel" id="main-panel">
             <h2>{title}</h2>
             <p>{lead}</p>
-            <FaqPanel />
+             {!isEngineer && <FaqPanel />}
             <div className="panel-row">
               <CiscanPanel />
               <TrafficPanel />
               <FirewallPanel />
             </div>
             {isEngineer && (
-              <div className="engineer-tools">
+              <>
+               <div className="engineer-tools">
                 <h3>Engineer Tools</h3>
                 <p>Extra diagnostics and logs available in engineer mode.</p>
                 <p className="engineer-name">Engineer: {ENGINEER_NAME}</p>
               </div>
+              <MonitoringPanel />
+              </>
             )}
-            <MonitoringPanel />
+            
           </section>
         </section>
       </main>
