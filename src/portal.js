@@ -180,6 +180,12 @@ function showCiscanOutput(message) {
   output.textContent = message;
 }
 
+function appendCiscanOutput(message) {
+  const output = document.getElementById('ciscan-output');
+  output.textContent += message;
+  output.scrollTop = output.scrollHeight;
+}
+
 function ipToPtrName(ip) {
   return ip.split('.').reverse().join('.') + '.in-addr.arpa';
 }
@@ -244,28 +250,63 @@ async function runOwnerLookup(query) {
   }
 }
 
-function runPing(query) {
+let activeNetworkStream = null;
+
+function isValidCiscanTarget(query) {
+  return /^(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$|^(?:\d{1,3}\.){3}\d{1,3}$/.test(query);
+}
+
+function runNetworkUtility(tool, query) {
   if (!query) return showCiscanOutput('Enter an IP or hostname first.');
-  const lines = ['Pinging ' + query + ' with 32 bytes of data:'];
-  for (let i = 0; i < 4; i++) {
-    const ms = 15 + Math.floor(Math.random() * 40);
-    lines.push(`Reply from ${query}: bytes=32 time=${ms}ms TTL=${56 + i}`);
+  if (!isValidCiscanTarget(query)) {
+    return showCiscanOutput('Enter a valid hostname or IPv4 address. Do not include protocol, path, or spaces.');
   }
-  lines.push('Ping statistics for ' + query + ':');
-  lines.push('    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)');
-  showCiscanOutput(lines.join('\n'));
+
+  if (activeNetworkStream) {
+    activeNetworkStream.close();
+    activeNetworkStream = null;
+  }
+
+  showCiscanOutput('');
+  const streamUrl = `/api/network/${tool}?target=${encodeURIComponent(query)}`;
+  const source = new EventSource(streamUrl);
+  activeNetworkStream = source;
+
+  source.addEventListener('status', event => {
+    const data = JSON.parse(event.data);
+    appendCiscanOutput(`${data.text}\n\n`);
+  });
+
+  source.addEventListener('output', event => {
+    const data = JSON.parse(event.data);
+    appendCiscanOutput(data.text);
+  });
+
+  source.addEventListener('done', event => {
+    const data = JSON.parse(event.data);
+    appendCiscanOutput(data.text);
+    source.close();
+    if (activeNetworkStream === source) activeNetworkStream = null;
+  });
+
+  source.addEventListener('error', event => {
+    if (event.data) {
+      const data = JSON.parse(event.data);
+      appendCiscanOutput(`\n${data.text}`);
+    } else {
+      appendCiscanOutput('\nConnection to network utility stream failed. Start the app with npm start so the local server can run Windows utilities.');
+    }
+    source.close();
+    if (activeNetworkStream === source) activeNetworkStream = null;
+  });
+}
+
+function runPing(query) {
+  return runNetworkUtility('ping', query);
 }
 
 function runTracert(query) {
-  if (!query) return showCiscanOutput('Enter an IP or hostname first.');
-  const hops = [
-    '  1    <1 ms    <1 ms    <1 ms  10.0.0.1',
-    '  2     5 ms     4 ms     5 ms  172.16.0.1',
-    '  3    10 ms     9 ms    10 ms  203.0.113.5',
-    '  4    18 ms    17 ms    19 ms  198.51.100.2',
-    `  5    23 ms    22 ms    23 ms  ${query}`
-  ];
-  showCiscanOutput(`Tracing route to ${query}\nover a maximum of 30 hops:\n\n${hops.join('\n')}`);
+  return runNetworkUtility('tracert', query);
 }
 
 function runTrafficCheck(src, dest, port) {

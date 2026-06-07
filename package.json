@@ -4,7 +4,7 @@
   "description": "A portal for the security team to manage and monitor security-related tasks.",
   "main": "src/app.js",
   "scripts": {
-    "start": "live-server src",
+    "start": "node src/app.js",
     "build": "echo 'Build step not defined'"
   },
   "author": "Your Name",
