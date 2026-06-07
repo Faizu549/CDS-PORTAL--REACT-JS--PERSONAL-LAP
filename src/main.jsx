@@ -70,10 +70,6 @@ function isValidCiscanTarget(query) {
   return /^(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$|^(?:\d{1,3}\.){3}\d{1,3}$/.test(query);
 }
 
-function ipToPtrName(ip) {
-  return `${ip.split('.').reverse().join('.')}.in-addr.arpa`;
-}
-
 function highlightParts(text, query) {
   if (!query) return text;
   const index = text.toLowerCase().indexOf(query.toLowerCase());
@@ -252,24 +248,23 @@ function CiscanPanel() {
   async function runDnsLookup() {
     const query = target.trim();
     if (!query) return setOutput('Enter an IP or hostname first.');
-    setOutput('Resolving DNS records...');
+    if (!isValidCiscanTarget(query)) return setOutput('Enter a valid hostname or IPv4 address. Do not include protocol, path, or spaces.');
+    setOutput('Resolving DNS records with local system DNS...');
     try {
-      if (isIPAddress(query)) {
-        const response = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(ipToPtrName(query))}&type=PTR`);
-        const data = await response.json();
-        if (data.Status !== 0 || !data.Answer) return setOutput(`Reverse DNS lookup for ${query} returned no PTR records.`);
-        return setOutput(`Reverse DNS Lookup for ${query}:\n${data.Answer.map(answer => `${answer.name} PTR ${answer.data}`).join('\n')}`);
+      const response = await fetch(`/api/network/dns?target=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      if (!response.ok) {
+        return setOutput(`DNS lookup failed: ${data.error || response.statusText}`);
       }
 
-      const results = [];
-      for (const type of ['A', 'AAAA']) {
-        const response = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(query)}&type=${type}`);
-        const data = await response.json();
-        if (data.Status === 0 && data.Answer) results.push(...data.Answer.map(answer => `${answer.name} ${type} ${answer.data}`));
-      }
-      setOutput(results.length ? `Forward DNS Lookup for ${query}:\n${results.join('\n')}` : `Forward DNS lookup for ${query} returned no A or AAAA records.`);
+      const lookupLabel = data.mode === 'reverse' ? 'Reverse DNS Lookup' : 'Forward DNS Lookup';
+      const resolverLine = `Resolver: ${data.servers?.length ? data.servers.join(', ') : 'local system default'}`;
+      const lines = data.records?.map(record => `${record.name} ${record.type} ${record.data}`) || [];
+      setOutput(lines.length
+        ? `${lookupLabel} for ${query}:\n${resolverLine}\n\n${lines.join('\n')}`
+        : `${lookupLabel} for ${query} returned no ${data.mode === 'reverse' ? 'PTR' : 'A or AAAA'} records.\n${resolverLine}${data.error ? `\nError: ${data.error}` : ''}`);
     } catch (error) {
-      setOutput(`DNS lookup failed: ${error.message}`);
+      setOutput(`DNS lookup failed: ${error.message}\nStart the API server with npm run server so the local server can use this machine's DNS resolver.`);
     }
   }
 

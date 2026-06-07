@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
 const { spawn } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
@@ -25,9 +26,61 @@ function isValidTarget(target) {
   return /^(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$|^(?:\d{1,3}\.){3}\d{1,3}$/.test(target);
 }
 
+function isIPAddress(value) {
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value);
+}
+
+function sendJson(res, statusCode, body) {
+  send(res, statusCode, JSON.stringify(body), 'application/json; charset=utf-8');
+}
+
 function streamEvent(res, type, payload) {
   res.write(`event: ${type}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+async function runDnsLookup(res, target) {
+  if (!isValidTarget(target)) {
+    sendJson(res, 400, { error: 'Enter a valid hostname or IPv4 address.' });
+    return;
+  }
+
+  try {
+    const servers = dns.getServers();
+
+    if (isIPAddress(target)) {
+      const hostnames = await dns.promises.reverse(target);
+      sendJson(res, 200, {
+        mode: 'reverse',
+        query: target,
+        servers,
+        records: hostnames.map(hostname => ({ type: 'PTR', name: target, data: hostname }))
+      });
+      return;
+    }
+
+    const records = await dns.promises.lookup(target, { all: true });
+    sendJson(res, 200, {
+      mode: 'forward',
+      query: target,
+      servers,
+      records: records.map(record => ({
+        type: record.family === 6 ? 'AAAA' : 'A',
+        name: target,
+        data: record.address
+      }))
+    });
+  } catch (error) {
+    const noRecords = ['ENOTFOUND', 'ENODATA', 'ESERVFAIL', 'ENODOMAIN', 'ETIMEOUT'].includes(error.code);
+    sendJson(res, noRecords ? 200 : 500, {
+      error: error.message,
+      code: error.code,
+      mode: isIPAddress(target) ? 'reverse' : 'forward',
+      query: target,
+      servers: dns.getServers(),
+      records: []
+    });
+  }
 }
 
 function runNetworkUtility(req, res, tool, target) {
@@ -112,6 +165,11 @@ function serveStatic(req, res, pathname) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const networkMatch = url.pathname.match(/^\/api\/network\/(ping|tracert)$/);
+
+  if (url.pathname === '/api/network/dns') {
+    runDnsLookup(res, (url.searchParams.get('target') || '').trim());
+    return;
+  }
 
   if (networkMatch) {
     runNetworkUtility(req, res, networkMatch[1], (url.searchParams.get('target') || '').trim());
