@@ -4,7 +4,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
-const PUBLIC_DIR = __dirname;
+const DIST_DIR = path.join(__dirname, '..', 'dist');
+const PUBLIC_DIR = fs.existsSync(DIST_DIR) ? DIST_DIR : path.join(__dirname, '..');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -91,7 +92,14 @@ function serveStatic(req, res, pathname) {
 
   fs.readFile(filePath, (error, data) => {
     if (error) {
-      send(res, 404, 'Not found');
+      fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (fallbackError, fallbackData) => {
+        if (fallbackError) {
+          send(res, 404, 'Not found. Run npm run build before npm start, or use npm run dev for local React development.');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'] });
+        res.end(fallbackData);
+      });
       return;
     }
 

@@ -4,13 +4,19 @@
   "description": "A portal for the security team to manage and monitor security-related tasks.",
   "main": "src/app.js",
   "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
     "start": "node src/app.js",
-    "build": "echo 'Build step not defined'"
+    "server": "node src/app.js"
   },
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
-    "live-server": "^1.2.1"
+    "@vitejs/plugin-react": "^6.0.2",
+    "live-server": "^1.2.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^8.0.16"
   },
   "keywords": [],
   "type": "commonjs"
